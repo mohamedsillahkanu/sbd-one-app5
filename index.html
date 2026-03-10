@@ -11,6 +11,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -73,7 +74,17 @@
         <div class="rd">School Distribution</div>
       </div>
 
-    </div>
+      <div class="role-btn" onclick="selectRole('supervisor')" data-role="supervisor">
+        <div class="ri">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M9 3l3 9 3-9"/>
+          </svg>
+        </div>
+        <div class="rl">SUPERVISOR</div>
+        <div class="rd">M&amp;E / Monitor</div>
+      </div>
 
     <div class="login-box">
       <div style="font-family:'Oswald',sans-serif;font-size:10px;font-weight:600;letter-spacing:2px;color:rgba(255,255,255,.5);margin-bottom:14px;text-align:center;">CREDENTIALS</div>
@@ -82,8 +93,8 @@
       <input class="inp" type="text" id="loginUser" placeholder="Enter username" autocomplete="off">
       <label class="lbl">Password</label>
       <input class="inp" type="password" id="loginPass" placeholder="••••••••">
-      <button class="big-btn gold" onclick="doLogin()" style="margin-top:4px;">SIGN IN →</button>
-      <div style="text-align:center;margin-top:12px;font-size:10px;color:rgba(255,255,255,.35);">Demo: any username / password <strong style="color:rgba(255,255,255,.5);">1234</strong></div>
+      <button class="big-btn gold" id="login-btn" onclick="doLogin()" style="margin-top:4px;">SIGN IN →</button>
+      <div style="text-align:center;margin-top:12px;font-size:10px;color:rgba(255,255,255,.35);">Credentials loaded from <strong style="color:rgba(255,255,255,.5);">users.csv</strong> · Default password <strong style="color:rgba(255,255,255,.5);">1234</strong></div>
     </div>
 
     <div class="partners-row">
@@ -464,7 +475,7 @@
         <div id="phud-schools-block" style="display:none;">
           <div class="fsec">DISTRIBUTOR RECORDS</div>
           <div id="phud-schools-list"></div>
-          <div class="card" style="background:var(--navy-l);border:2px solid var(--navy);margin-top:12px;">
+          <div id="phud-target-info" style="margin:6px 0;"></div>
             <div class="card-body" style="padding:12px 16px;">
               <div class="fl" style="margin-bottom:4px;">DISTRIBUTION STATUS</div>
               <div style="font-family:'Oswald',sans-serif;font-size:20px;font-weight:700;color:var(--navy);" id="phud-auto-need">—</div>
@@ -584,12 +595,13 @@
     <div class="card">
       <div class="card-hdr blue"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg><span class="card-htitle">MY QR ID CARD</span></div>
       <div class="card-body" style="text-align:center;">
-        <div style="font-size:12px;color:var(--text-s);margin-bottom:10px;">Show this to PHU staff to scan</div>
+        <div style="font-size:12px;color:var(--text-s);margin-bottom:10px;">PHU staff must scan this QR code to verify your identity</div>
         <div style="background:var(--navy-l);border:3px solid var(--navy);border-radius:14px;padding:20px;display:inline-block;">
-          <div style="font-family:'Oswald',sans-serif;font-size:36px;font-weight:700;color:var(--navy);letter-spacing:4px;" id="driver-qr-code">—</div>
-          <div style="font-size:11px;color:var(--text-s);margin-top:6px;">QR CODE ID</div>
+          <div id="driver-qr-canvas" style="display:flex;align-items:center;justify-content:center;min-height:180px;min-width:180px;"></div>
         </div>
         <div style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;color:var(--text);margin-top:12px;" id="driver-qr-name">—</div>
+        <div style="font-size:11px;color:var(--text-s);margin-top:2px;" id="driver-qr-title">—</div>
+        <div style="font-size:11px;color:var(--text-s);" id="driver-qr-district">—</div>
       </div>
     </div>
   </div>
@@ -615,6 +627,10 @@
       <div class="stat-box green"><div class="stat-n" id="di-stat2">0</div><div class="stat-l">Distributed</div></div>
       <div class="stat-box orange"><div class="stat-n" id="di-stat3">0</div><div class="stat-l">Remaining</div></div>
       <div class="stat-box teal"><div class="stat-n" id="di-stat4">0%</div><div class="stat-l">Coverage</div></div>
+    </div>
+    <div id="di-target-bar-wrap" style="display:none;margin:0 4px 4px;padding:8px 12px;background:var(--navy-l);border-radius:10px;">
+      <div style="font-size:10px;color:var(--text-s);margin-bottom:4px;font-family:'Oswald',sans-serif;letter-spacing:.5px;" id="di-target-label"></div>
+      <div style="background:var(--border);border-radius:6px;height:8px;"><div id="di-target-bar" style="height:100%;border-radius:6px;width:0%;transition:width 0.5s;"></div></div>
     </div>
     <div class="card">
       <div class="menu-item" onclick="showScreen('scr-dist-schools')">
@@ -837,7 +853,7 @@
     <div class="topbar-info"><div class="topbar-title" id="school-record-title">School Record</div><div class="topbar-sub">Distribution details</div></div>
   </div>
   <div class="content">
-    <div class="card" id="school-record-content"></div>
+    <div class="card" id="dist-record-content"></div>
   </div>
 </div>
 
@@ -855,14 +871,123 @@
       <div class="stat-box green"><div class="stat-n" id="ds-dist">0</div><div class="stat-l">Distributed</div></div>
       <div class="stat-box orange"><div class="stat-n" id="ds-remain">0</div><div class="stat-l">Must Return</div></div>
     </div>
-    <div class="card" id="dist-summary-detail">
-      <div class="card-body"><div style="text-align:center;color:var(--gray-d);padding:20px 0;font-size:13px;">Complete distribution to see summary</div></div>
+    <div id="dist-summary-content"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     SUPERVISOR DASHBOARD
+══════════════════════════════════════════ -->
+<div class="screen" id="scr-supervisor">
+  <div class="topbar">
+    <div class="topbar-info"><div class="topbar-title">SUPERVISOR PANEL</div><div class="topbar-sub" id="sup-user-sub">Loading...</div></div>
+    <div class="topbar-avatar gold" onclick="doLogout()" id="sup-avatar">SU</div>
+  </div>
+  <div class="content">
+    <div class="dash-hdr">
+      <div class="dash-hdr-wave"></div><div class="dash-hdr-wave2"></div>
+      <div class="dh-role" id="sup-title">M&amp;E SUPERVISOR</div>
+      <div class="dh-name" id="sup-name">—</div>
+      <div class="dh-loc">System-wide View · All Devices</div>
+    </div>
+
+    <!-- System stats -->
+    <div class="stat-row" style="margin-top:14px;">
+      <div class="stat-box navy"><div class="stat-n" id="sup-stat1">0</div><div class="stat-l">Total Users</div></div>
+      <div class="stat-box teal"><div class="stat-n" id="sup-stat2">0</div><div class="stat-l">ITNs Dispatched</div></div>
+      <div class="stat-box green"><div class="stat-n" id="sup-stat3">0</div><div class="stat-l">Distributed</div></div>
+      <div class="stat-box gold"><div class="stat-n" id="sup-stat4">0%</div><div class="stat-l">Overall Target</div></div>
+    </div>
+    <div style="margin:0 4px 14px;padding:10px 12px;background:var(--navy-l);border-radius:10px;">
+      <div style="font-size:10px;color:var(--text-s);margin-bottom:5px;font-family:'Oswald',sans-serif;letter-spacing:.5px;" id="sup-progress-label">Loading...</div>
+      <div style="background:var(--border);border-radius:6px;height:10px;"><div id="sup-progress-bar" style="height:100%;border-radius:6px;width:0%;background:var(--navy);transition:width 0.5s;"></div></div>
+    </div>
+
+    <!-- Menu -->
+    <div class="card" style="margin-bottom:12px;">
+      <div class="menu-item" onclick="showScreen('scr-sup-scan')">
+        <div class="menu-ico gold"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></div>
+        <div class="menu-txt"><div class="menu-title">Scan User QR Code</div><div class="menu-desc">Scan any user's QR card to view their full dossier</div></div>
+        <div class="menu-arr">›</div>
+      </div>
+      <div class="menu-item" onclick="showScreen('scr-sup-users')">
+        <div class="menu-ico navy"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
+        <div class="menu-txt"><div class="menu-title">All Users &amp; Activity</div><div class="menu-desc">Browse all users with role-specific stats</div></div>
+        <div class="menu-arr">›</div>
+      </div>
+    </div>
+
+    <!-- Quick distributor status -->
+    <div class="card">
+      <div class="card-hdr orange"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg><span class="card-htitle">DISTRIBUTOR PROGRESS</span></div>
+      <div class="card-body" style="padding:10px 12px;" id="sup-dist-quick"></div>
     </div>
   </div>
 </div>
 
 <!-- ══════════════════════════════════════════
-     NOTIFICATION & HIDDEN QR READER
+     SUPERVISOR — SCAN QR
+══════════════════════════════════════════ -->
+<div class="screen" id="scr-sup-scan">
+  <div class="topbar">
+    <button class="topbar-back" onclick="showScreen('scr-supervisor')"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <div class="topbar-info"><div class="topbar-title">SCAN USER QR</div><div class="topbar-sub">Any role — driver, distributor, PHU, DHMT</div></div>
+  </div>
+  <div class="content">
+    <div class="alert info">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+      <div class="alert-txt"><strong>IDENTITY SCAN</strong><span>Scan any user's QR ID card. Only QR codes registered in users.csv will be accepted.</span></div>
+    </div>
+    <div class="card">
+      <div class="card-hdr gold"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="4" height="4"/></svg><span class="card-htitle">SCAN USER QR CODE</span></div>
+      <div class="card-body">
+        <div id="sup-scan-overlay" style="text-align:center;padding:20px 0;">
+          <svg style="width:56px;height:56px;stroke:var(--gold-d);fill:none;margin-bottom:10px;" viewBox="0 0 24 24" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+          <p style="font-size:13px;color:var(--text-s);margin-bottom:14px;">Point camera at any user's QR ID card</p>
+          <button class="btn gold" onclick="startQR('qr-sup','onSupScan')">
+            <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>SCAN QR CODE
+          </button>
+        </div>
+        <div class="scanner-wrap" id="sup-scanner-wrap" style="display:none;"><div class="scanner-overlay-ring"></div><div id="qr-sup"></div></div>
+        <div style="text-align:center;display:none;" id="sup-stop-btn"><button class="btn red" style="margin-top:10px;" onclick="stopQR('qr-sup')">STOP SCANNER</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     SUPERVISOR — ALL USERS
+══════════════════════════════════════════ -->
+<div class="screen" id="scr-sup-users">
+  <div class="topbar">
+    <button class="topbar-back" onclick="showScreen('scr-supervisor')"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <div class="topbar-info"><div class="topbar-title">ALL USERS</div><div class="topbar-sub">Tap any user to view full dossier</div></div>
+  </div>
+  <div class="content">
+    <div class="sup-filter-tabs">
+      <button class="sup-filter-tab active" data-role="all" onclick="supFilterUsers('all')">All</button>
+      <button class="sup-filter-tab" data-role="dhmt" onclick="supFilterUsers('dhmt')">DHMT</button>
+      <button class="sup-filter-tab" data-role="phu" onclick="supFilterUsers('phu')">PHU</button>
+      <button class="sup-filter-tab" data-role="driver" onclick="supFilterUsers('driver')">Driver</button>
+      <button class="sup-filter-tab" data-role="distributor" onclick="supFilterUsers('distributor')">Dist.</button>
+    </div>
+    <div id="sup-users-list" style="margin-top:10px;"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     SUPERVISOR — USER PROFILE / DOSSIER
+══════════════════════════════════════════ -->
+<div class="screen" id="scr-sup-profile">
+  <div class="topbar">
+    <button class="topbar-back" onclick="showScreen('scr-sup-users')"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <div class="topbar-info"><div class="topbar-title" id="sup-profile-title">User Profile</div><div class="topbar-sub">Full activity dossier</div></div>
+  </div>
+  <div class="content" id="sup-profile-content"></div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     NOTIFICATION & HIDDEN QR READERS
 ══════════════════════════════════════════ -->
 <div class="notif" id="notif"></div>
 <div id="qr-reader4" style="display:none;"></div>
