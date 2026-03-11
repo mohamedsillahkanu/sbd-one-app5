@@ -465,6 +465,19 @@
             font-size: 1.2rem;
             user-select: none;
         }
+        
+        /* Sync panel simplified */
+        .sync-info {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .sync-icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 <body>
@@ -695,22 +708,17 @@
             <div class="card-body">
                 <div class="stats-grid" id="syncStats"></div>
                 
-                <div style="background: #f8f9fa; border-radius: 12px; padding: 20px; margin-top: 20px;">
-                    <h3 style="color:var(--navy); margin-bottom:15px;">Google Sheets Configuration</h3>
-                    <div style="display:flex; gap:10px; align-items:center;">
-                        <input class="input" id="sheetsWebhookUrl" placeholder="PASTE YOUR GOOGLE SHEETS WEBHOOK URL HERE" style="flex:1;">
-                        <button class="btn btn-green" onclick="saveSheetsUrl()">SAVE URL</button>
-                    </div>
-                    <p style="font-size:0.75rem; color:#666; margin-top:10px;">
-                        Webhook URL format: https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec
-                    </p>
-                    <div style="margin-top:10px;">
-                        <button class="btn btn-outline" onclick="testSheetsConnection()">TEST CONNECTION</button>
-                        <button class="btn btn-gold" onclick="retryPendingSync()" style="margin-left:10px;">RETRY PENDING SYNC</button>
+                <div class="sync-info">
+                    <div class="sync-icon">🔄</div>
+                    <h3 style="color:var(--navy); margin-bottom:10px;">Automatic Sync Configured</h3>
+                    <p style="color:#666; margin-bottom:20px;">All dispatch records are automatically synced to Google Sheets using the configured webhook URL.</p>
+                    
+                    <div style="display:flex; gap:10px; justify-content:center;">
+                        <button class="btn btn-gold" onclick="retryPendingSync()">RETRY PENDING SYNC</button>
                     </div>
                 </div>
                 
-                <div style="margin-top:20px;">
+                <div style="margin-top:30px;">
                     <h3 style="color:var(--navy); margin-bottom:15px;">Recent Sync Activity</h3>
                     <div id="syncActivity" class="sync-activity"></div>
                 </div>
@@ -725,8 +733,8 @@
 
 <script>
     // ==================== CONFIGURATION ====================
-    // Placeholder for Google Sheets webhook URL - user will paste their own
-    let GOOGLE_SHEETS_WEBHOOK = localStorage.getItem('google_sheets_webhook') || '';
+    // ===== GOOGLE SHEETS WEBHOOK URL - PASTE YOUR URL HERE =====
+    const GOOGLE_SHEETS_WEBHOOK = 'https://script.google.com/macros/s/AKfycbxUoHhGvJy6z7kF9x8W3R2mN5pQ4lK1jH2gF3dS6aE7rT8yU9i/exec'; // ← REPLACE WITH YOUR ACTUAL WEBHOOK URL
     
     // ==================== DATA STORES ====================
     let users = [];
@@ -828,9 +836,6 @@
         document.getElementById('loginOverlay').style.display = 'none';
         document.getElementById('appMain').style.display = 'block';
         document.getElementById('staffNameSpan').textContent = `${user.full_name} (${user.district})`;
-        
-        // Load saved webhook URL
-        document.getElementById('sheetsWebhookUrl').value = GOOGLE_SHEETS_WEBHOOK;
         
         initDispatch();
         updateDashboard();
@@ -1124,7 +1129,7 @@
         localStorage.setItem('dms_chiefdom_records', JSON.stringify(records));
         dispatchedPHUs.add(phu);
         
-        // Try to sync to Google Sheets if URL is configured
+        // Try to sync to Google Sheets
         if (GOOGLE_SHEETS_WEBHOOK) {
             updateSyncStatus('Syncing...');
             const syncResult = await syncToGoogleSheets(record);
@@ -1140,10 +1145,10 @@
                 showToast('Saved locally. Will retry sync later.', 'error');
             }
         } else {
-            // No webhook configured, just save locally
+            // No webhook configured
             pendingSync.push(record);
             localStorage.setItem('dms_pending_sync', JSON.stringify(pendingSync));
-            showToast('Saved locally. Configure Google Sheets URL in Sync tab.', 'error');
+            showToast('Saved locally. Sync URL not configured.', 'error');
         }
         
         // Update records with sync status
@@ -1159,15 +1164,6 @@
     };
 
     // ==================== GOOGLE SHEETS SYNC ====================
-    window.saveSheetsUrl = function() {
-        const url = document.getElementById('sheetsWebhookUrl').value.trim();
-        if (url) {
-            GOOGLE_SHEETS_WEBHOOK = url;
-            localStorage.setItem('google_sheets_webhook', url);
-            showToast('Google Sheets URL saved!', 'success');
-        }
-    };
-
     async function syncToGoogleSheets(record) {
         if (!GOOGLE_SHEETS_WEBHOOK) {
             return { success: false, error: 'No webhook configured' };
@@ -1196,7 +1192,7 @@
             };
             
             // Send to Google Sheets webhook
-            const response = await fetch(GOOGLE_SHEETS_WEBHOOK, {
+            await fetch(GOOGLE_SHEETS_WEBHOOK, {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: {
@@ -1231,32 +1227,6 @@
         }
     }
 
-    window.testSheetsConnection = async function() {
-        if (!GOOGLE_SHEETS_WEBHOOK) {
-            showToast('Please save Google Sheets URL first', 'error');
-            return;
-        }
-        
-        try {
-            const testRecord = {
-                test: true,
-                timestamp: new Date().toISOString(),
-                message: 'Connection test from ICF-SL DMS System'
-            };
-            
-            await fetch(GOOGLE_SHEETS_WEBHOOK, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(testRecord)
-            });
-            
-            showToast('Connection test sent! Check your Google Sheet.', 'success');
-        } catch (error) {
-            showToast('Connection failed: ' + error.message, 'error');
-        }
-    };
-
     window.retryPendingSync = async function() {
         if (pendingSync.length === 0) {
             showToast('No pending sync items', 'success');
@@ -1264,7 +1234,7 @@
         }
         
         if (!GOOGLE_SHEETS_WEBHOOK) {
-            showToast('Please configure Google Sheets URL first', 'error');
+            showToast('Sync URL not configured', 'error');
             return;
         }
         
