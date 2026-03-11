@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ICF‑SL · DMS Chiefdom Logistics</title>
-    <meta name="description" content="ICF-SL DMS to PHU ITN Distribution System with Google Sheets Sync">
+    <title>ICF‑SL · DMS Chiefdom Logistics with QR</title>
+    <meta name="description" content="ICF-SL DMS to PHU ITN Distribution with QR Receipts">
     <meta name="theme-color" content="#0B3B5C">
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Oswald', sans-serif; background: #F0F4F8; min-height: 100vh; }
@@ -241,6 +242,51 @@
         .btn-gold { background: var(--gold); color: var(--navy); }
         .btn-green { background: var(--green); }
 
+        /* QR Code Display */
+        .qr-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border: 2px dashed var(--gold);
+            text-align: center;
+        }
+        
+        #qrcode {
+            padding: 15px;
+            background: white;
+            border-radius: 12px;
+            border: 3px solid var(--gold);
+            display: inline-block;
+            margin: 10px auto;
+        }
+        
+        .qr-info {
+            background: var(--green-light);
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 15px;
+            text-align: left;
+            border-left: 4px solid var(--green);
+        }
+        
+        .qr-info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px dashed #ccc;
+        }
+        
+        .qr-badge {
+            background: var(--gold);
+            color: var(--navy);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+
         /* QR Scanner */
         .qr-scanner-section {
             background: #f8f9fa;
@@ -344,7 +390,7 @@
         /* PHU Grid */
         .phu-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
             gap: 12px;
             margin-top: 15px;
         }
@@ -360,7 +406,6 @@
         .phu-card.dispatched {
             background: var(--red-light);
             border-color: var(--red);
-            opacity: 0.8;
         }
         
         .phu-card .phu-name {
@@ -406,6 +451,58 @@
         }
         
         .data-table tr:hover { background: #f8f9fa; }
+
+        /* QR in table */
+        .qr-thumb {
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            border: 1px solid var(--gold);
+            border-radius: 5px;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            display: none;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 24px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+            border-top: 6px solid var(--gold);
+        }
+        
+        .modal-close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--navy);
+        }
+        
+        .modal-title {
+            font-size: 1.3rem;
+            color: var(--navy);
+            margin-bottom: 20px;
+            padding-right: 30px;
+        }
 
         /* Toast */
         .toast {
@@ -511,7 +608,7 @@
         </div>
         <div class="log-header-text">
             <h1>ICF‑Sierra Leone</h1>
-            <p>Chiefdom-Based DMS → PHU Logistics</p>
+            <p>Chiefdom-Based DMS → PHU Logistics with QR</p>
         </div>
         <div class="sync-status" id="syncStatus">
             <span class="sync-dot"></span>
@@ -530,7 +627,8 @@
     <div class="tabs">
         <button class="tab active" id="tabDashboard">📊 DASHBOARD</button>
         <button class="tab" id="tabDispatch">➕ NEW DISPATCH</button>
-        <button class="tab" id="tabRecords">📋 RECORDS</button>
+        <button class="tab" id="tabRecords">📋 RECORDS & QR</button>
+        <button class="tab" id="tabScan">📷 SCAN QR (PHU RECEIPT)</button>
         <button class="tab" id="tabSync">🔄 SYNC STATUS</button>
     </div>
 
@@ -604,7 +702,7 @@
                     ⚠ This PHU has already been dispatched to!
                 </div>
                 
-                <!-- Driver Verification Section (After ITN Allocation) -->
+                <!-- Driver Verification Section -->
                 <div class="qr-scanner-section">
                     <h3 style="color:var(--navy); margin-bottom:15px;">STEP 2: VERIFY DRIVER</h3>
                     
@@ -666,9 +764,26 @@
                 </div>
                 
                 <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:20px;">
-                    <button class="btn btn-green" onclick="saveAndSyncDispatch()" id="saveBtn" disabled>✓ SAVE & SYNC TO SHEETS</button>
+                    <button class="btn btn-green" onclick="saveAndSyncDispatch()" id="saveBtn" disabled>✓ GENERATE QR & SAVE</button>
                     <button class="btn btn-outline" onclick="resetForm()">↺ RESET</button>
                 </div>
+            </div>
+        </div>
+        
+        <!-- QR Code Display (hidden initially) -->
+        <div id="qrDisplaySection" class="qr-section" style="display:none;">
+            <span class="qr-badge">✅ QR CODE GENERATED - FOR PHU STAFF</span>
+            <div id="qrcode"></div>
+            <p style="margin:10px 0; color:var(--navy);">Scan this QR code at the PHU to verify delivery</p>
+            
+            <div class="qr-info" id="qrInfoContainer">
+                <h4 style="color:var(--navy); margin-bottom:8px;">📋 DELIVERY RECEIPT</h4>
+                <div id="qrInfoContent"></div>
+            </div>
+            
+            <div style="display:flex; gap:10px; margin-top:15px; justify-content:center;">
+                <button class="btn btn-gold" onclick="downloadQR()">⬇️ DOWNLOAD QR</button>
+                <button class="btn btn-outline" onclick="printQR()">🖨️ PRINT RECEIPT</button>
             </div>
         </div>
     </div>
@@ -676,7 +791,7 @@
     <!-- RECORDS PANEL -->
     <div class="container" id="panelRecords" style="display:none;">
         <div class="card">
-            <div class="card-header"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span>DISPATCH RECORDS</span></div>
+            <div class="card-header"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span>DISPATCH RECORDS WITH QR</span></div>
             <div class="card-body">
                 <div style="overflow-x:auto;">
                     <table class="data-table">
@@ -691,11 +806,46 @@
                                 <th>Total</th>
                                 <th>Driver</th>
                                 <th>Vehicle</th>
+                                <th>QR</th>
                                 <th>Synced</th>
                             </tr>
                         </thead>
                         <tbody id="recordsTable"></tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCAN QR PANEL (PHU Receipt Verification) -->
+    <div class="container" id="panelScan" style="display:none;">
+        <div class="card">
+            <div class="card-header gold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg><span>PHU RECEIPT VERIFICATION</span></div>
+            <div class="card-body">
+                <div class="qr-scanner-section">
+                    <h3 style="color:var(--navy); margin-bottom:15px;">SCAN DELIVERY QR CODE</h3>
+                    
+                    <div class="video-container">
+                        <video id="receiptScanVideo" autoplay playsinline></video>
+                        <div class="scan-line"></div>
+                    </div>
+                    <canvas id="receiptScanCanvas" style="display:none;"></canvas>
+                    
+                    <div style="display:flex; gap:8px; margin-top:15px; justify-content:center;">
+                        <button class="btn btn-gold" id="startReceiptScanBtn">▶ START SCANNER</button>
+                        <button class="btn btn-outline" id="stopReceiptScanBtn" style="display:none;">⏹ STOP</button>
+                    </div>
+                    
+                    <div id="receiptResult" style="margin-top:20px; display:none;">
+                        <div class="qr-info" style="border-left-color: var(--gold);">
+                            <h4 style="color:var(--navy); margin-bottom:10px;">✅ DELIVERY VERIFIED</h4>
+                            <div id="receiptContent"></div>
+                            <div style="margin-top:15px; text-align:center;">
+                                <span class="verified-badge">RECEIVED AT PHU</span>
+                                <p style="margin-top:10px; font-size:0.8rem;" id="verificationTimestamp"></p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -711,7 +861,7 @@
                 <div class="sync-info">
                     <div class="sync-icon">🔄</div>
                     <h3 style="color:var(--navy); margin-bottom:10px;">Automatic Sync Configured</h3>
-                    <p style="color:#666; margin-bottom:20px;">All dispatch records are automatically synced to Google Sheets using the configured webhook URL.</p>
+                    <p style="color:#666; margin-bottom:20px;">All dispatch records are automatically synced to Google Sheets.</p>
                     
                     <div style="display:flex; gap:10px; justify-content:center;">
                         <button class="btn btn-gold" onclick="retryPendingSync()">RETRY PENDING SYNC</button>
@@ -726,7 +876,17 @@
         </div>
     </div>
 
-    <div class="footer">ICF‑Sierra Leone · Data synced to Google Sheets</div>
+    <div class="footer">ICF‑Sierra Leone · QR-enabled DMS Logistics</div>
+</div>
+
+<!-- QR Modal for larger view -->
+<div class="modal-overlay" id="qrModal">
+    <div class="modal-content">
+        <span class="modal-close" onclick="closeQRModal()">&times;</span>
+        <h3 class="modal-title">Delivery QR Code</h3>
+        <div id="modalQR" style="text-align:center; padding:20px;"></div>
+        <div id="modalQRInfo" style="margin-top:20px;"></div>
+    </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -773,6 +933,7 @@
         const csvText = await response.text();
         const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
         users = parsed.data;
+        console.log('Users loaded:', users.length);
     }
 
     async function loadPHUCSSV() {
@@ -847,6 +1008,7 @@
     document.getElementById('logoutBtn').addEventListener('click', () => {
         currentStaff = null;
         stopQR();
+        stopReceiptScan();
         document.getElementById('loginOverlay').style.display = 'flex';
         document.getElementById('appMain').style.display = 'none';
         document.getElementById('loginUsername').value = '';
@@ -862,11 +1024,16 @@
     document.getElementById('tabDispatch').addEventListener('click', () => {
         setActiveTab('dispatch');
         resetDriverVerification();
+        document.getElementById('qrDisplaySection').style.display = 'none';
     });
     
     document.getElementById('tabRecords').addEventListener('click', () => {
         setActiveTab('records');
         renderRecords();
+    });
+    
+    document.getElementById('tabScan').addEventListener('click', () => {
+        setActiveTab('scan');
     });
     
     document.getElementById('tabSync').addEventListener('click', () => {
@@ -881,6 +1048,7 @@
         document.getElementById('panelDashboard').style.display = tab === 'dashboard' ? 'block' : 'none';
         document.getElementById('panelDispatch').style.display = tab === 'dispatch' ? 'block' : 'none';
         document.getElementById('panelRecords').style.display = tab === 'records' ? 'block' : 'none';
+        document.getElementById('panelScan').style.display = tab === 'scan' ? 'block' : 'none';
         document.getElementById('panelSync').style.display = tab === 'sync' ? 'block' : 'none';
     }
 
@@ -1046,7 +1214,7 @@
         stopQR();
     }
 
-    // ==================== DISPATCH FUNCTIONS ====================
+    // ==================== DISPATCH & QR FUNCTIONS ====================
     function initDispatch() {
         const now = new Date();
         document.getElementById('dispDateTime').value = now.toLocaleString();
@@ -1084,7 +1252,7 @@
             return;
         }
         
-        // Get vehicle info (manual entry)
+        // Get vehicle info
         const vehiclePlate = document.getElementById('vehiclePlate').value.trim();
         const vehicleType = document.getElementById('vehicleType').value;
         const vehicleInfo = vehiclePlate ? 
@@ -1124,10 +1292,16 @@
             syncAttempts: 0
         };
         
-        // Save locally first
+        // Generate QR Code FIRST
+        await generateQRCode(record);
+        
+        // Save locally
         records.push(record);
         localStorage.setItem('dms_chiefdom_records', JSON.stringify(records));
         dispatchedPHUs.add(phu);
+        
+        // Show QR section
+        document.getElementById('qrDisplaySection').style.display = 'block';
         
         // Try to sync to Google Sheets
         if (GOOGLE_SHEETS_WEBHOOK) {
@@ -1137,18 +1311,16 @@
             if (syncResult.success) {
                 record.synced = true;
                 record.syncedAt = new Date().toISOString();
-                showToast('Dispatch saved and synced to Google Sheets!', 'success');
+                showToast('Dispatch saved, QR generated, and synced to Google Sheets!', 'success');
             } else {
-                // Add to pending sync queue
                 pendingSync.push(record);
                 localStorage.setItem('dms_pending_sync', JSON.stringify(pendingSync));
-                showToast('Saved locally. Will retry sync later.', 'error');
+                showToast('Saved locally with QR. Will retry sync later.', 'error');
             }
         } else {
-            // No webhook configured
             pendingSync.push(record);
             localStorage.setItem('dms_pending_sync', JSON.stringify(pendingSync));
-            showToast('Saved locally. Sync URL not configured.', 'error');
+            showToast('Saved locally with QR. Sync URL not configured.', 'error');
         }
         
         // Update records with sync status
@@ -1159,9 +1331,248 @@
         updateDashboard();
         renderRecords();
         updateSyncStatus();
-        
-        setActiveTab('dashboard');
     };
+
+    // Generate QR Code with all delivery information
+    async function generateQRCode(record) {
+        const qrElement = document.getElementById('qrcode');
+        qrElement.innerHTML = '';
+        
+        // Create comprehensive QR data for PHU staff
+        const qrData = JSON.stringify({
+            type: 'ICF-SL-DELIVERY',
+            version: '1.0',
+            dispatchId: record.id,
+            date: record.date,
+            time: record.time,
+            district: record.district,
+            chiefdom: record.chiefdom,
+            phu: record.phu,
+            items: {
+                ig2: record.ig2,
+                pbo: record.pbo,
+                total: record.total
+            },
+            driver: {
+                name: record.driverName,
+                username: record.driverUsername,
+                phone: record.driverPhone
+            },
+            vehicle: record.vehicleInfo,
+            dmsStaff: record.staffName,
+            timestamp: record.timestamp,
+            verification: {
+                required: true,
+                expires: new Date(Date.now() + 7*24*60*60*1000).toISOString() // 7 days validity
+            }
+        });
+        
+        try {
+            await QRCode.toCanvas(qrElement, qrData, { 
+                width: 200,
+                margin: 2,
+                color: {
+                    dark: '#0B3B5C',
+                    light: '#FFFFFF'
+                }
+            });
+            
+            // Display delivery receipt info
+            const infoHtml = `
+                <div class="qr-info-item"><span>Dispatch ID:</span> <strong>${record.id}</strong></div>
+                <div class="qr-info-item"><span>Date:</span> ${record.date} ${record.time}</div>
+                <div class="qr-info-item"><span>Destination:</span> ${record.district} → ${record.chiefdom} → ${record.phu}</div>
+                <div class="qr-info-item"><span>ITNs Received:</span> IG2:${record.ig2} | PBO:${record.pbo} | Total:${record.total}</div>
+                <div class="qr-info-item"><span>Delivered By:</span> ${record.driverName} (${record.driverPhone})</div>
+                <div class="qr-info-item"><span>Vehicle:</span> ${record.vehicleInfo}</div>
+                <div class="qr-info-item"><span>DMS Staff:</span> ${record.staffName}</div>
+                <div class="qr-info-item"><span>Verification Code:</span> <strong>${record.id.slice(-6)}</strong></div>
+            `;
+            document.getElementById('qrInfoContent').innerHTML = infoHtml;
+            
+        } catch (error) {
+            console.error('QR Generation Error:', error);
+            showToast('QR generation failed', 'error');
+        }
+    }
+
+    // Download QR as PNG
+    window.downloadQR = function() {
+        const canvas = document.querySelector('#qrcode canvas');
+        if (!canvas) return;
+        
+        const link = document.createElement('a');
+        link.download = `delivery-${document.getElementById('dispId').value}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    };
+
+    // Print receipt
+    window.printQR = function() {
+        const qrCanvas = document.querySelector('#qrcode canvas');
+        const qrInfo = document.getElementById('qrInfoContent').innerHTML;
+        
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <html>
+            <head>
+                <title>ICF-SL Delivery Receipt</title>
+                <style>
+                    body { font-family: 'Oswald', sans-serif; padding: 20px; }
+                    .receipt { max-width: 400px; margin: 0 auto; }
+                    .header { text-align: center; margin-bottom: 20px; }
+                    .qr { text-align: center; margin: 20px 0; }
+                    .info { border-top: 2px solid #E1A534; padding: 10px; }
+                    .footer { margin-top: 30px; font-size: 0.8rem; text-align: center; }
+                </style>
+            </head>
+            <body>
+                <div class="receipt">
+                    <div class="header">
+                        <h2>ICF‑Sierra Leone</h2>
+                        <h3>ITN Delivery Receipt</h3>
+                    </div>
+                    <div class="qr">
+                        <img src="${qrCanvas.toDataURL()}" style="width:200px;">
+                    </div>
+                    <div class="info">
+                        ${qrInfo.replace(/<span/g, '<div style="margin:5px 0;"><span').replace(/<\/div>/g, '</div></div>')}
+                    </div>
+                    <div class="footer">
+                        <p>This QR code serves as proof of delivery.<br>Scan to verify authenticity.</p>
+                        <p>ICF‑SL · ${new Date().toLocaleString()}</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.print();
+    };
+
+    // Show QR in modal
+    window.showQRModal = function(record) {
+        const modal = document.getElementById('qrModal');
+        const modalQR = document.getElementById('modalQR');
+        const modalInfo = document.getElementById('modalQRInfo');
+        
+        modalQR.innerHTML = '';
+        modal.style.display = 'flex';
+        
+        const qrData = JSON.stringify({
+            type: 'ICF-SL-DELIVERY',
+            dispatchId: record.id,
+            date: record.date,
+            phu: record.phu,
+            total: record.total,
+            driver: record.driverName
+        });
+        
+        QRCode.toCanvas(modalQR, qrData, { width: 200 }, function(error) {
+            if (error) console.error(error);
+        });
+        
+        modalInfo.innerHTML = `
+            <div class="qr-info-item"><span>Dispatch ID:</span> <strong>${record.id}</strong></div>
+            <div class="qr-info-item"><span>Date:</span> ${record.date}</div>
+            <div class="qr-info-item"><span>PHU:</span> ${record.phu}</div>
+            <div class="qr-info-item"><span>ITNs:</span> ${record.total}</div>
+            <div class="qr-info-item"><span>Driver:</span> ${record.driverName}</div>
+        `;
+    };
+
+    window.closeQRModal = function() {
+        document.getElementById('qrModal').style.display = 'none';
+    };
+
+    // ==================== RECEIPT SCANNER ====================
+    let receiptScanStream = null;
+    let receiptScanInterval = null;
+
+    document.getElementById('startReceiptScanBtn').addEventListener('click', startReceiptScan);
+    document.getElementById('stopReceiptScanBtn').addEventListener('click', stopReceiptScan);
+
+    async function startReceiptScan() {
+        document.getElementById('startReceiptScanBtn').style.display = 'none';
+        document.getElementById('stopReceiptScanBtn').style.display = 'inline-flex';
+        document.getElementById('receiptResult').style.display = 'none';
+        
+        try {
+            receiptScanStream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: 'environment' } 
+            });
+            
+            const video = document.getElementById('receiptScanVideo');
+            video.srcObject = receiptScanStream;
+            await video.play();
+            
+            const canvas = document.getElementById('receiptScanCanvas');
+            
+            receiptScanInterval = setInterval(() => {
+                if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
+                
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height);
+                
+                if (code && code.data) {
+                    try {
+                        const data = JSON.parse(code.data);
+                        if (data.type === 'ICF-SL-DELIVERY') {
+                            displayReceiptInfo(data);
+                            stopReceiptScan();
+                        }
+                    } catch (e) {
+                        // Not our QR format
+                    }
+                }
+            }, 300);
+        } catch (e) {
+            showToast('Camera error: ' + e.message, 'error');
+            stopReceiptScan();
+        }
+    }
+
+    function stopReceiptScan() {
+        if (receiptScanInterval) {
+            clearInterval(receiptScanInterval);
+            receiptScanInterval = null;
+        }
+        if (receiptScanStream) {
+            receiptScanStream.getTracks().forEach(t => t.stop());
+            receiptScanStream = null;
+        }
+        document.getElementById('startReceiptScanBtn').style.display = 'inline-flex';
+        document.getElementById('stopReceiptScanBtn').style.display = 'none';
+    }
+
+    function displayReceiptInfo(data) {
+        const resultDiv = document.getElementById('receiptResult');
+        const contentDiv = document.getElementById('receiptContent');
+        
+        // Find matching record
+        const record = records.find(r => r.id === data.dispatchId);
+        const status = record ? '✓ Verified - In Database' : '⚠ Warning - Not in Database';
+        
+        contentDiv.innerHTML = `
+            <div class="qr-info-item"><span>Dispatch ID:</span> <strong>${data.dispatchId}</strong></div>
+            <div class="qr-info-item"><span>Date:</span> ${data.date} ${data.time || ''}</div>
+            <div class="qr-info-item"><span>PHU:</span> ${data.phu}</div>
+            <div class="qr-info-item"><span>ITNs Received:</span> ${data.total} (IG2:${data.items?.ig2 || 0}, PBO:${data.items?.pbo || 0})</div>
+            <div class="qr-info-item"><span>Driver:</span> ${data.driver?.name || data.driver}</div>
+            <div class="qr-info-item"><span>Status:</span> <strong style="color:${record ? 'var(--green)' : 'var(--red)'};">${status}</strong></div>
+        `;
+        
+        document.getElementById('verificationTimestamp').textContent = 
+            `Verified on: ${new Date().toLocaleString()}`;
+        
+        resultDiv.style.display = 'block';
+        showToast('QR Code scanned successfully!', 'success');
+    }
 
     // ==================== GOOGLE SHEETS SYNC ====================
     async function syncToGoogleSheets(record) {
@@ -1188,7 +1599,13 @@
                 vehicleInfo: record.vehicleInfo,
                 staffName: record.staffName,
                 staffUsername: record.staffUsername,
-                staffDistrict: record.staffDistrict
+                staffDistrict: record.staffDistrict,
+                qrGenerated: true,
+                qrData: JSON.stringify({
+                    id: record.id,
+                    phu: record.phu,
+                    total: record.total
+                })
             };
             
             // Send to Google Sheets webhook
@@ -1206,7 +1623,7 @@
                 timestamp: new Date().toISOString(),
                 dispatchId: record.id,
                 status: 'success',
-                message: 'Synced to Google Sheets'
+                message: 'Synced to Google Sheets with QR'
             });
             localStorage.setItem('dms_sync_log', JSON.stringify(syncLog));
             
@@ -1246,7 +1663,6 @@
             const result = await syncToGoogleSheets(record);
             if (result.success) {
                 record.synced = true;
-                // Update in main records
                 const mainRecord = records.find(r => r.id === record.id);
                 if (mainRecord) {
                     mainRecord.synced = true;
@@ -1305,7 +1721,6 @@
             </div>
         `;
         
-        // Recent sync activity
         const recent = syncLog.slice(-10).reverse();
         document.getElementById('syncActivity').innerHTML = recent.map(log => `
             <div style="padding:8px; border-bottom:1px solid #eee; display:flex; gap:10px;">
@@ -1446,7 +1861,7 @@
                                 <div style="font-size:0.65rem; margin-top:5px;">
                                     ITNs: ${dispatch.total}<br>
                                     Driver: ${dispatch.driverName}<br>
-                                    Vehicle: ${dispatch.vehicleInfo || 'N/A'}
+                                    QR: <button class="btn" style="padding:2px 5px; font-size:0.6rem;" onclick="showQRModal(${JSON.stringify(dispatch).replace(/"/g, '&quot;')})">VIEW</button>
                                 </div>
                             ` : ''}
                         </div>
@@ -1463,7 +1878,7 @@
         const tbody = document.getElementById('recordsTable');
         
         if (!records.length) {
-            tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;">No records yet</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;">No records yet</td></tr>';
             return;
         }
         
@@ -1483,6 +1898,11 @@
                 <td><strong>${r.total}</strong></td>
                 <td>${r.driverName}</td>
                 <td>${r.vehicleInfo || 'N/A'}</td>
+                <td>
+                    <button class="btn" style="padding:4px 8px; font-size:0.7rem;" onclick="showQRModal(${JSON.stringify(r).replace(/"/g, '&quot;')})">
+                        📱 QR
+                    </button>
+                </td>
                 <td><span style="color:${r.synced ? 'var(--green)' : 'var(--red)'};">${r.synced ? '✓' : '⏳'}</span></td>
             </tr>
         `).join('');
